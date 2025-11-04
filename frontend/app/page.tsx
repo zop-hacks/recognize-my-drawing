@@ -29,11 +29,11 @@ export default function HomePage() {
           {/* Description */}
           <div className="max-w-3xl mx-auto space-y-6">
             <p className="text-xl sm:text-2xl text-gray-600 leading-relaxed">
-              A CNN model will try to guess your drawing!
+              A CNN machine learning model will try to guess what you draw!
             </p>
             <p className="text-lg text-gray-500">
               Challenge yourself with various prompts, and put your drawing
-              skills to the test, while the CNN will try to recognize what you
+              skills to the test, while the CNN will try to recognize your drawings
               draw
             </p>
           </div>

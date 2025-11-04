@@ -500,15 +500,15 @@ export default function PlayPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-primary">🤖</span>
-                      <span>AI checks every 0.5s</span>
+                      <span>AI will auto check every 0.5s</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-primary">✅</span>
-                      <span>Correct = auto next</span>
+                      <span className="text-primary">😃</span>
+                      <span>Have fun</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-primary">⏰</span>
-                      <span>20s per round</span>
+                      <span>20s for each drawing</span>
                     </div>
                   </div>
                 </div>
