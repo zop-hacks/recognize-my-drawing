@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AlarmClock,
   CheckCircle2,
@@ -63,6 +70,8 @@ export default function PlayPage() {
   const [resetSignal, setResetSignal] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [hudHeight, setHudHeight] = useState(0);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
 
   const roundStartRef = useRef<number | null>(null);
   const hasRoundEndedRef = useRef(false);
@@ -70,6 +79,7 @@ export default function PlayPage() {
   const nextRoundTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const feedbackCooldownRef = useRef(0);
   const lastPredictionRef = useRef<string | null>(null);
+  const hudCardRef = useRef<HTMLElement | null>(null);
 
   const clearTimers = useCallback(() => {
     if (timerIntervalRef.current) {
@@ -387,6 +397,79 @@ export default function PlayPage() {
           results.length
         ).toFixed(1)
       : null;
+  const completedRounds = results.length;
+  const roundsInProgress = phase === "drawing" ? 1 : 0;
+  const roundsRemaining =
+    totalRounds > 0
+      ? Math.max(totalRounds - (completedRounds + roundsInProgress), 0)
+      : 0;
+  const currentRoundNumber =
+    totalRounds > 0
+      ? Math.min(completedRounds + roundsInProgress, totalRounds)
+      : 0;
+  const gameProgress =
+    totalRounds > 0 ? Math.min(100, (completedRounds / totalRounds) * 100) : 0;
+  const currentStreak = useMemo(() => {
+    let streak = 0;
+    for (let index = results.length - 1; index >= 0; index -= 1) {
+      if (!results[index]?.success) {
+        break;
+      }
+      streak += 1;
+    }
+    return streak;
+  }, [results]);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!hudCardRef.current) return;
+
+    const measure = () => {
+      if (!hudCardRef.current) return;
+      const rect = hudCardRef.current.getBoundingClientRect();
+      setHudHeight(rect.height);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(hudCardRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [
+    phase,
+    currentPrompt,
+    wins,
+    totalRounds,
+    roundsRemaining,
+    gameProgress,
+    timeLeft,
+  ]);
+
+  useEffect(() => {
+    const handleViewport = () => {
+      if (typeof window === "undefined") return;
+      const width = window.innerWidth;
+      setIsCompactViewport(width < 768);
+    };
+
+    handleViewport();
+    window.addEventListener("resize", handleViewport);
+    return () => window.removeEventListener("resize", handleViewport);
+  }, []);
+
+  const hudStickyTop = "calc(var(--header-h) + 0.1rem)";
+  const trackerStickyTop =
+    hudHeight > 0
+      ? `calc(var(--header-h) + ${hudHeight}px + 1rem)`
+      : "calc(var(--header-h) + 6.5rem)";
 
   const promptStatuses = prompts.map((prompt, index) => {
     if (index < results.length) {
@@ -401,29 +484,115 @@ export default function PlayPage() {
   });
 
   return (
-    <div className="h-viewport bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-950 dark:to-gray-900">
-      <div className="container mx-auto flex flex-col gap-2 px-2 sm:px-4 py-1 sm:py-2 max-w-7xl h-full overflow-y-auto">
-        <header className="mx-auto w-full max-w-5xl shrink-0">
-          <Card className="border-primary/20 bg-white/80 backdrop-blur-sm shadow-lg dark:border-primary/40 dark:bg-gray-900/80 animate-in fade-in-0 slide-in-from-top-4 duration-700">
-            <CardHeader className="gap-1 text-center sm:text-left p-2">
-              <CardTitle className="text-base font-semibold sm:text-lg leading-tight">
-                {phase === "drawing" && currentPrompt ? (
-                  <span className="capitalize flex items-center justify-center sm:justify-start gap-2">
-                    <Sparkles
-                      className="size-4 shrink-0 animate-bounce text-primary"
-                      aria-hidden
-                    />
-                    Draw: {currentPrompt}
-                  </span>
-                ) : (
-                  "Can our model guess what you're sketching?"
-                )}
-              </CardTitle>
-              {phase !== "drawing" && (
-                <CardDescription className="text-xs max-w-3xl">
-                  Sketch each prompt in under 20 seconds and let the CNN decide
-                  if it knows what you drew.
-                </CardDescription>
+    <div className="min-h-viewport bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-950 dark:to-gray-900">
+      <div className="container mx-auto flex flex-col gap-1.5 px-2 sm:px-4 py-1 sm:py-2 max-w-7xl min-h-full">
+        <header
+          className={cn(
+            "mx-auto w-full max-w-5xl shrink-0 transition-all duration-300",
+            phase === "drawing" && "lg:sticky lg:z-30"
+          )}
+          ref={hudCardRef}
+          style={phase === "drawing" ? { top: hudStickyTop } : undefined}
+        >
+          <Card
+            className={cn(
+              "border-primary/20 bg-white/85 backdrop-blur-md shadow-md dark:border-primary/40 dark:bg-gray-900/85 animate-in fade-in-0 slide-in-from-top-4 duration-700 py-4 gap-4",
+              phase === "drawing" && "lg:shadow-lg"
+            )}
+          >
+            <CardHeader
+              className={cn(
+                "p-3 sm:p-4",
+                phase === "drawing"
+                  ? "space-y-2"
+                  : "gap-1 text-center sm:text-left"
+              )}
+            >
+              {phase === "drawing" && currentPrompt ? (
+                <>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-center gap-2 text-base font-semibold capitalize leading-tight sm:text-lg">
+                      <Sparkles
+                        className="size-4 shrink-0 text-primary"
+                        aria-hidden
+                      />
+                      <span>Draw: {currentPrompt}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                      {totalRounds > 0 && (
+                        <Badge variant="secondary" className="font-semibold">
+                          Round {currentRoundNumber} / {totalRounds}
+                        </Badge>
+                      )}
+                      <div className="flex items-center gap-1 font-mono text-sm">
+                        <AlarmClock
+                          className={cn(
+                            "size-4",
+                            timeLeft <= 5
+                              ? "text-red-500 animate-pulse"
+                              : "text-primary"
+                          )}
+                          aria-hidden
+                        />
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            timeLeft <= 5 ? "text-red-500" : "text-foreground"
+                          )}
+                        >
+                          {String(Math.max(0, timeLeft)).padStart(2, "0")}s
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <CheckCircle2
+                          className="size-4 text-emerald-500"
+                          aria-hidden
+                        />
+                        <span className="font-medium">
+                          {wins} win{wins === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      {totalRounds > 0 && (
+                        <span className="text-muted-foreground">
+                          {roundsRemaining > 0
+                            ? `${roundsRemaining} left`
+                            : "Final prompt"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {totalRounds > 0 && (
+                    <div className="space-y-1">
+                      <Progress
+                        value={gameProgress}
+                        className="h-1.5 bg-secondary"
+                        aria-label="Overall game progress"
+                      />
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                        {completedRounds} of {totalRounds} prompts completed
+                      </p>
+                    </div>
+                  )}
+                  {!isCompactViewport && (
+                    <p className="text-xs text-muted-foreground">
+                      Keep sketching until the model locks in your prompt.
+                      <span className="hidden sm:inline">
+                        {" "}
+                        Auto-checks every 0.5s.
+                      </span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <CardTitle className="text-base font-semibold leading-tight sm:text-lg">
+                    Can our model guess what you're sketching?
+                  </CardTitle>
+                  <CardDescription className="text-xs max-w-3xl">
+                    Sketch each prompt in under 20 seconds and let the CNN
+                    decide if it knows what you drew.
+                  </CardDescription>
+                </>
               )}
             </CardHeader>
           </Card>
@@ -536,25 +705,91 @@ export default function PlayPage() {
         )}
 
         {phase === "drawing" && (
-          <div className="flex-1 flex flex-col xl:grid xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2 min-h-0 overflow-hidden">
-            {/* Progress panel - shows first on mobile, second on desktop */}
-            <Card className="bg-white/80 backdrop-blur-sm shadow-lg dark:bg-gray-900/80 order-1 xl:order-2 flex flex-col animate-in fade-in-0 slide-in-from-right-4 duration-500 min-h-0 xl:max-h-full">
-              <CardHeader className="p-2 shrink-0">
+          <section className="flex-1 grid min-h-0 grid-cols-1 gap-2 lg:mt-0 lg:gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+            <Card className="bg-white/85 shadow-lg backdrop-blur md:backdrop-blur-sm dark:bg-gray-900/85 flex flex-col animate-in fade-in-0 slide-in-from-left-4 duration-500 min-h-0 border border-border/60 py-4 gap-4">
+              <CardHeader className="gap-2 p-3 sm:px-4 sm:py-3 shrink-0 lg:hidden">
+                <div className="flex items-center justify-between lg:hidden">
+                  <Badge
+                    variant="secondary"
+                    className="w-fit animate-pulse text-xs"
+                  >
+                    Round {Math.max(1, currentRoundNumber || 1)} of{" "}
+                    {Math.max(1, totalRounds)}
+                  </Badge>
+                  <div className="flex items-center gap-2 text-lg font-bold sm:text-xl">
+                    <AlarmClock
+                      className={cn(
+                        "size-4 shrink-0",
+                        timeLeft <= 5
+                          ? "text-red-500 animate-pulse"
+                          : "text-primary"
+                      )}
+                      aria-hidden
+                    />
+                    <span
+                      className={cn(
+                        timeLeft <= 5 ? "text-red-500" : "text-foreground"
+                      )}
+                    >
+                      {String(Math.max(0, timeLeft)).padStart(2, "0")}s
+                    </span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 min-h-0 space-y-2 p-3 sm:p-4">
+                <div className="flex-1 flex items-center justify-center min-h-0">
+                  <DrawingCanvas
+                    size={isCompactViewport ? 280 : 360}
+                    onCapture={handleCapture}
+                    resetSignal={resetSignal}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                    {isPredicting ? "CNN checking your sketch…" : "Auto-check every 0.5s"}
+                  </p>
+                  <Progress
+                    value={timerProgress}
+                    className={cn(
+                      "h-2 transition-all duration-300",
+                      timeLeft <= 5 && "animate-pulse"
+                    )}
+                    aria-label="Time left"
+                  />
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                    <span>Time remaining</span>
+                    <span>
+                      {roundsRemaining > 0
+                        ? `${roundsRemaining} prompt${
+                            roundsRemaining === 1 ? "" : "s"
+                          } left`
+                        : "Final prompt"}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="bg-white/85 backdrop-blur-sm shadow-lg dark:bg-gray-900/85 flex flex-col animate-in fade-in-0 slide-in-from-right-4 duration-500 min-h-0 border border-border/60 py-4 gap-4 lg:sticky"
+              style={phase === "drawing" ? { top: trackerStickyTop } : undefined}
+            >
+              <CardHeader className="p-3 pb-2 shrink-0">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Circle className="size-3 text-green-500 animate-pulse" />
-                  Progress
+                  Prompt tracker
                 </CardTitle>
-                <CardDescription className="text-xs">
-                  AI's guessing streak
-                </CardDescription>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Follow how the AI reads each prompt
+                </p>
               </CardHeader>
-              <CardContent className="space-y-1 p-2 flex-1 min-h-0 overflow-y-auto">
+              <CardContent className="flex-1 min-h-0 p-0">
                 {prompts.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
+                  <div className="px-3 pb-3 text-xs text-muted-foreground">
                     Loading prompts...
-                  </p>
+                  </div>
                 ) : (
-                  <div className="space-y-1 max-h-full">
+                  <div className="space-y-1 px-3 pb-3 pr-1 overflow-y-auto lg:max-h-[60vh]">
                     {prompts.map((prompt, index) => {
                       const status = promptStatuses[index];
                       const result = results[index];
@@ -564,7 +799,7 @@ export default function PlayPage() {
                         <div
                           key={`${prompt}-${index}`}
                           className={cn(
-                            "flex items-center justify-between rounded-md border px-2 py-1 transition-all duration-300 text-xs",
+                            "flex items-center justify-between rounded-md border px-2 py-1 text-xs transition-all duration-300",
                             status === "win" &&
                               "border-emerald-500/60 bg-emerald-500/10 animate-in slide-in-from-left-2",
                             status === "lose" &&
@@ -600,7 +835,7 @@ export default function PlayPage() {
                                 aria-hidden
                               />
                             )}
-                            <span className="font-medium capitalize text-foreground truncate text-xs">
+                            <span className="truncate font-medium capitalize text-foreground">
                               {prompt}
                             </span>
                           </div>
@@ -614,7 +849,7 @@ export default function PlayPage() {
                                 ? "secondary"
                                 : "outline"
                             }
-                            className="text-xs shrink-0 ml-1 px-1 py-0"
+                            className="ml-1 shrink-0 px-1 py-0 text-[11px]"
                           >
                             {status === "win" && result
                               ? `${result.time.toFixed(1)}s`
@@ -629,74 +864,27 @@ export default function PlayPage() {
                   </div>
                 )}
               </CardContent>
-            </Card>
-
-            {/* Drawing panel - shows second on mobile, first on desktop */}
-            <Card className="bg-white/80 shadow-lg backdrop-blur-sm dark:bg-gray-900/80 order-2 xl:order-1 flex flex-col animate-in fade-in-0 slide-in-from-left-4 duration-500 min-h-0">
-              <CardHeader className="gap-1 p-2 shrink-0">
-                <div className="flex items-center justify-between">
+              <CardFooter className="flex flex-wrap items-center gap-2 border-t border-border/60 bg-muted/20 p-3 text-xs">
+                <Badge variant="default" className="bg-emerald-500/90">
+                  Wins {wins}
+                </Badge>
+                <Badge variant="outline">Done {completedRounds}</Badge>
+                {roundsRemaining > 0 ? (
+                  <Badge variant="secondary">{roundsRemaining} left</Badge>
+                ) : (
+                  <Badge variant="secondary">Wrapping up</Badge>
+                )}
+                {currentStreak > 1 && (
                   <Badge
-                    variant="secondary"
-                    className="w-fit animate-pulse text-xs"
+                    variant="outline"
+                    className="border-primary/40 text-primary"
                   >
-                    Round {Math.min(results.length + 1, totalRounds)} of{" "}
-                    {totalRounds}
+                    Streak ×{currentStreak}
                   </Badge>
-                  <div className="flex items-center gap-2 text-lg sm:text-xl font-bold">
-                    <AlarmClock
-                      className={cn(
-                        "size-4 shrink-0",
-                        timeLeft <= 5
-                          ? "text-red-500 animate-pulse"
-                          : "text-primary"
-                      )}
-                      aria-hidden
-                    />
-                    <span
-                      className={cn(
-                        timeLeft <= 5 ? "text-red-500" : "text-foreground"
-                      )}
-                    >
-                      {String(Math.max(0, timeLeft)).padStart(2, "0")}s
-                    </span>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1 p-2 flex-1 flex flex-col min-h-0">
-                <div className="flex items-center justify-center gap-2 text-xs rounded-lg bg-muted/30 px-2 py-1">
-                  {isPredicting ? (
-                    <>
-                      <Spinner className="size-3 text-primary" />
-                      <span className="text-muted-foreground animate-pulse">
-                        🤖 CNN is thinking...
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      ✏️ Draw boldly!
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex-1 flex items-center justify-center min-h-0">
-                  <DrawingCanvas
-                    size={320}
-                    onCapture={handleCapture}
-                    resetSignal={resetSignal}
-                  />
-                </div>
-
-                {/* Progress bar under canvas */}
-                <Progress
-                  value={timerProgress}
-                  className={cn(
-                    "h-2 transition-all duration-300",
-                    timeLeft <= 5 && "animate-pulse"
-                  )}
-                />
-              </CardContent>
+                )}
+              </CardFooter>
             </Card>
-          </div>
+          </section>
         )}
 
         {phase === "finished" && (
