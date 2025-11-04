@@ -7,8 +7,8 @@ export const navLinks: Array<NavLinkProps> = [
     href: "/",
   },
   {
-    display_name: "Github(addgithub)",
-    href: "/github-will-be",
+    display_name: "Github Repo",
+    href: "https://github.com/zop-hacks/recognize-my-drawing",
   },
 ];
 
