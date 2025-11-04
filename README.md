@@ -2,8 +2,8 @@
 ---
 ### How did I make the ML model?
 The model was made using the original dataset from quick draw. which is in an ndjson format, stored similarly to an svg. I made a script and converted this data into images (64 x 64 grayscale), and then created a CNN model using pytorch see [pytorch_train.ipynb](ml/pytorch_train.ipynb).
-I only chose 6 classes, and 20K images per class. and the model came out even better than I anticipated.
-![assets\model-training-preformance.png]
+I only chose 6 classes, and 20K images per class. and the model came out even better than I anticipated. it even managed to get 96.93% on the test dataset.
+!(model training and eval preformance)[assets\model-training-preformance.png]
 ### How does the app work?
 My app is made from a FastAPI backend and a Nextjs frontend.
 
