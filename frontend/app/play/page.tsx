@@ -72,6 +72,7 @@ export default function PlayPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hudHeight, setHudHeight] = useState(0);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [isLaptopViewport, setIsLaptopViewport] = useState(false);
 
   const roundStartRef = useRef<number | null>(null);
   const hasRoundEndedRef = useRef(false);
@@ -458,6 +459,7 @@ export default function PlayPage() {
       if (typeof window === "undefined") return;
       const width = window.innerWidth;
       setIsCompactViewport(width < 768);
+      setIsLaptopViewport(width < 1280);
     };
 
     handleViewport();
@@ -485,7 +487,7 @@ export default function PlayPage() {
 
   return (
     <div className="min-h-viewport bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-950 dark:to-gray-900">
-      <div className="container mx-auto flex flex-col gap-1.5 px-2 sm:px-4 py-1 sm:py-2 max-w-7xl min-h-full">
+      <div className="container mx-auto flex flex-col gap-1 px-2 sm:px-4 py-1 sm:py-2 max-w-7xl min-h-full">
         <header
           className={cn(
             "mx-auto w-full max-w-5xl shrink-0 transition-all duration-300",
@@ -496,7 +498,7 @@ export default function PlayPage() {
         >
           <Card
             className={cn(
-              "border-primary/20 bg-white/85 backdrop-blur-md shadow-md dark:border-primary/40 dark:bg-gray-900/85 animate-in fade-in-0 slide-in-from-top-4 duration-700 py-4 gap-4",
+              "border-primary/20 bg-white/85 backdrop-blur-md shadow-md dark:border-primary/40 dark:bg-gray-900/85 animate-in fade-in-0 slide-in-from-top-4 duration-700 py-3 gap-3",
               phase === "drawing" && "lg:shadow-lg"
             )}
           >
@@ -572,15 +574,6 @@ export default function PlayPage() {
                         {completedRounds} of {totalRounds} prompts completed
                       </p>
                     </div>
-                  )}
-                  {!isCompactViewport && (
-                    <p className="text-xs text-muted-foreground">
-                      Keep sketching until the model locks in your prompt.
-                      <span className="hidden sm:inline">
-                        {" "}
-                        Auto-checks every 0.5s.
-                      </span>
-                    </p>
                   )}
                 </>
               ) : (
@@ -705,8 +698,8 @@ export default function PlayPage() {
         )}
 
         {phase === "drawing" && (
-          <section className="flex-1 grid min-h-0 grid-cols-1 gap-2 lg:mt-0 lg:gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
-            <Card className="bg-white/85 shadow-lg backdrop-blur md:backdrop-blur-sm dark:bg-gray-900/85 flex flex-col animate-in fade-in-0 slide-in-from-left-4 duration-500 min-h-0 border border-border/60 py-4 gap-4">
+          <section className="flex-1 grid min-h-0 grid-cols-1 gap-2 lg:mt-0 lg:gap-2.5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.9fr)] xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+            <Card className="bg-white/85 shadow-lg backdrop-blur md:backdrop-blur-sm dark:bg-gray-900/85 flex flex-col animate-in fade-in-0 slide-in-from-left-4 duration-500 min-h-0 border border-border/60 py-3 gap-3">
               <CardHeader className="gap-2 p-3 sm:px-4 sm:py-3 shrink-0 lg:hidden">
                 <div className="flex items-center justify-between lg:hidden">
                   <Badge
@@ -739,15 +732,12 @@ export default function PlayPage() {
               <CardContent className="flex-1 min-h-0 space-y-2 p-3 sm:p-4">
                 <div className="flex-1 flex items-center justify-center min-h-0">
                   <DrawingCanvas
-                    size={isCompactViewport ? 280 : 360}
+                    size={isCompactViewport ? 240 : isLaptopViewport ? 320 : 360}
                     onCapture={handleCapture}
                     resetSignal={resetSignal}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                    {isPredicting ? "CNN checking your sketch…" : "Auto-check every 0.5s"}
-                  </p>
+                <div className="space-y-1">
                   <Progress
                     value={timerProgress}
                     className={cn(
@@ -771,7 +761,7 @@ export default function PlayPage() {
             </Card>
 
             <Card
-              className="bg-white/85 backdrop-blur-sm shadow-lg dark:bg-gray-900/85 flex flex-col animate-in fade-in-0 slide-in-from-right-4 duration-500 min-h-0 border border-border/60 py-4 gap-4 lg:sticky"
+              className="bg-white/85 backdrop-blur-sm shadow-lg dark:bg-gray-900/85 flex flex-col animate-in fade-in-0 slide-in-from-right-4 duration-500 min-h-0 border border-border/60 py-3 gap-3 lg:sticky"
               style={phase === "drawing" ? { top: trackerStickyTop } : undefined}
             >
               <CardHeader className="p-3 pb-2 shrink-0">

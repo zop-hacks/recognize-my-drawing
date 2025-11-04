@@ -219,22 +219,34 @@ export default function DrawingCanvas({ size = 400, onCapture, resetSignal }: Dr
 
   // Handle responsive canvas sizing
   useEffect(() => {
+    const MIN_CANVAS_SIZE = 200
     const handleResize = () => {
       if (!containerRef.current) return
-      
-      // The canvas will now be sized by CSS aspect-ratio and max-width
-      // We just need to update our internal size tracking for coordinate calculations
-      const container = containerRef.current.querySelector('.aspect-square')
-      if (container) {
-        const rect = container.getBoundingClientRect()
-        setCanvasSize(Math.min(rect.width, rect.height))
-      }
+
+      const parentElement = containerRef.current.parentElement
+      const parentWidth = parentElement
+        ? parentElement.getBoundingClientRect().width
+        : containerRef.current.getBoundingClientRect().width
+
+      const { top } = containerRef.current.getBoundingClientRect()
+      const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : size
+      const availableHeight = viewportHeight - top - 24 // leave a bit of breathing room
+
+      const nextSize = Math.max(
+        MIN_CANVAS_SIZE,
+        Math.min(size, parentWidth, availableHeight > 0 ? availableHeight : MIN_CANVAS_SIZE)
+      )
+
+      setCanvasSize(nextSize)
     }
 
-    // Initial sizing
-    setTimeout(handleResize, 100) // Small delay to ensure DOM is ready
+    handleResize()
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('orientationchange', handleResize)
+    }
   }, [size])
 
   // Initialize canvas only once
@@ -349,9 +361,19 @@ export default function DrawingCanvas({ size = 400, onCapture, resetSignal }: Dr
     clearCanvas()
   }, [resetSignal, clearCanvas])
 
+  const displaySize = Math.round(canvasSize)
+
   return (
     <div className="flex flex-col items-center w-full max-w-2xl mx-auto" ref={containerRef}>
-      <div className="relative w-full max-w-lg aspect-square">
+      <div
+        className="relative w-full"
+        style={{
+          width: '100%',
+          maxWidth: `${displaySize}px`,
+          maxHeight: `${displaySize}px`,
+          aspectRatio: '1 / 1',
+        }}
+      >
         <div className="absolute inset-0 border-2 border-gray-300 rounded-lg overflow-hidden shadow-lg bg-white">
           <canvas
             ref={canvasRef}
