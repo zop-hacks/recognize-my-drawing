@@ -23,5 +23,7 @@ fun fact: the canvas is displaying a way higher resolution than what's eventuall
 2. FastAPI Backend
 3. Nextjs Frontend
 
-### Credits
-for the amazing team at Google that made Quick Draw, and published the dataset for everyone to use.
+### Credit
+- for the amazing team at Google that made Quick Draw, and published the dataset for everyone to use.
+- pytorch's team and community are so crucial for ML progress.
+- for google's team that made tensorflow and keras, which I originally made my model at.
